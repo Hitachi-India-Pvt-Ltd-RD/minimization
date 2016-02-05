@@ -121,4 +121,4 @@ Other kernel configs are yet to determine.
 ## Contact
 If you have problems, questions, ideas or suggestions, please contact below, or post to the SIL2LinuxMP mailing list.
 * Desai Krishnaji <krishnaji@hitachi.co.in>
-* Kotaro Hashimoto <khashimoto@hitachi.co.in>
+* Kotaro Hashimoto <kotaro.hashimoto.jv@hitachi.com>

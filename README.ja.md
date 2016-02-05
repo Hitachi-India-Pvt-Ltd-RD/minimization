@@ -115,4 +115,4 @@ minimize後のビルド成功を確認した設定はLinux Kernelで `allnoconfi
 ## Contact
 このスクリプトに関するお問い合わせやご提案はKrishnajiまたは橋本までご連絡ください。
 * Desai Krishnaji <krishnaji@hitachi.co.in>
-* Kotaro Hashimoto <khashimoto@hitachi.co.in>
+* Kotaro Hashimoto <kotaro.hashimoto.jv@hitachi.com>
