@@ -154,7 +154,7 @@ def isCorrelatedIncludeLine(orgLine, headerPath):
 def restoreHeaderInclude(mindir, target, strippedLines):
 
     detectedEncoding = detectEncoding(target)
-    origin = open(target, 'r', encoding = detectedEncoding)
+    origin = open(target, 'r', encoding = detectedEncoding, errors='replace')
     minimized = open(mindir + target, 'w', encoding = detectedEncoding)
 
     for strippedLine in strippedLines:
@@ -219,7 +219,7 @@ def restoreHeaderInclude(mindir, target, strippedLines):
 # identify and delete the expanded header file contents
 def stripHeaders(mindir, target):
 
-    preprocessed = open(mindir + target + '.preprocessed', 'r', encoding = detectEncoding(mindir + target + '.preprocessed'))
+    preprocessed = open(mindir + target + '.preprocessed', 'r', encoding = detectEncoding(mindir + target + '.preprocessed'), errors='replace')
     strippedLines = []
 
     writeOn = False
