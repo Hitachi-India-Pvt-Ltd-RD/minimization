@@ -108,6 +108,14 @@ def detectEncoding(filepath):
     return encoding if '8859' in encoding else 'utf-8'
 
 
+# remove comments that are inserted in the same line
+def removeComments(line):
+    while b'/*' in line and b'*/' in line:
+        line = line.split(b'/*')[0] + line.split(b'*/', 1)[-1]
+
+    return line
+
+
 # True if the stripped line originated from the original line, False if they are different
 def isCorrelatedLine(orgLine, strippedLine):
 
@@ -121,21 +129,15 @@ def isCorrelatedLine(orgLine, strippedLine):
         return True
 
     elif not (orgLine.isspace() or orgLine.strip() == b'\\') and orgLine.strip().endswith(b'\\'):
-        while b'/*' in orgLine and b'*/' in orgLine:
-            orgLine = orgLine.split(b'/*')[0] + orgLine.split(b'*/', 1)[-1]
+        orgLine = removeComments(orgLine)
         if b''.join(orgLine.strip()[:-1].split()) in b''.join(strippedLine.split()):
             return True
 
     else:
-        while b'/*' in orgLine and b'*/' in orgLine:
-            orgLine = orgLine.split(b'/*')[0] + orgLine.split(b'*/', 1)[-1]
-
-        while b'/*' in strippedLine and b'*/' in strippedLine:
-            strippedLine = strippedLine.split(b'/*')[0] + strippedLine.split(b'*/', 1)[-1]
-
+        orgLine = removeComments(orgLine)
+        strippedLine = removeComments(strippedLine)
         if b''.join(strippedLine.split()) == b''.join(orgLine.split()):
             return True
-
 
     return False
 
