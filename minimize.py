@@ -92,7 +92,7 @@ def displaySummary(diffstat):
     display('Unused %d lines(%d%% of the original C code) have been removed.' % (changedLines, 100 * changedLines / originalLines))
 
 
-# detect encoding for C file to open
+# detect encoding for a C file to open
 def detectEncoding(filepath):
 
     if (os.system('file -i ' + filepath + ' > /dev/null 2>&1') >> 8) != 0:
@@ -111,30 +111,33 @@ def detectEncoding(filepath):
 # True if the stripped line originated from the original line, False if they are different
 def isCorrelatedLine(orgLine, strippedLine):
 
-    correlated = True
+    if strippedLine.strip().startswith(b'/*') and b''.join(strippedLine.split()) == b''.join(orgLine.split()):
+        return True
 
-    if strippedLine.strip().startswith('/*') and ''.join(strippedLine.split()) == ''.join(orgLine.split()):
-        pass
+    elif b''.join(strippedLine.split()) == b''.join(orgLine.split(b'/*')[0].split()):
+        return True
 
-    elif ''.join(strippedLine.split()) == ''.join(orgLine.split('/*')[0].split()):
-        pass
+    elif b''.join(strippedLine.split(b'//')[0].split()) == b''.join(orgLine.split(b'//')[0].split()):
+        return True
 
-    elif ''.join(strippedLine.split('//')[0].split()) == ''.join(orgLine.split('//')[0].split()):
-        pass
-
-    elif '/*' in orgLine and '*/' in orgLine and \
-         ''.join(strippedLine.split()) == ''.join((orgLine.split('/*')[0] + orgLine.split('*/')[-1]).split()):
-        pass
-
-    elif not (orgLine.isspace() or orgLine.strip() == '\\') and \
-         ''.join(orgLine.strip()[:-1].split()) in ''.join(strippedLine.split()) and \
-         orgLine.strip().endswith('\\'):
-        pass
+    elif not (orgLine.isspace() or orgLine.strip() == b'\\') and orgLine.strip().endswith(b'\\'):
+        while b'/*' in orgLine and b'*/' in orgLine:
+            orgLine = orgLine.split(b'/*')[0] + orgLine.split(b'*/', 1)[-1]
+        if b''.join(orgLine.strip()[:-1].split()) in b''.join(strippedLine.split()):
+            return True
 
     else:
-        correlated = False
+        while b'/*' in orgLine and b'*/' in orgLine:
+            orgLine = orgLine.split(b'/*')[0] + orgLine.split(b'*/', 1)[-1]
 
-    return correlated
+        while b'/*' in strippedLine and b'*/' in strippedLine:
+            strippedLine = strippedLine.split(b'/*')[0] + strippedLine.split(b'*/', 1)[-1]
+
+        if b''.join(strippedLine.split()) == b''.join(orgLine.split()):
+            return True
+
+
+    return False
 
 
 # True if the current original line corresponds to the stripped "TO BE REPLACED: " line, False if they don't match
@@ -142,20 +145,16 @@ def isCorrelatedIncludeLine(orgLine, headerPath):
 
     correlated = False
 
-    incLine = ''.join(orgLine.split())
-    if incLine.startswith('#include'):
+    incLine = b''.join(orgLine.split())
+    if incLine.startswith(b'#include'):
         # 9 is len('#include') + 1
-        correlated = headerPath.endswith(incLine[9: 9 + incLine[9:].find('>' if incLine[8] == '<' else '\"')])
+        correlated = headerPath.endswith(incLine[9: 9 + incLine[9:].find(b'>' if incLine[8:9] == b'<' else b'\"')])
 
     return correlated
 
 
-# copy the relevant #include lines from the original C source file
-def restoreHeaderInclude(mindir, target, strippedLines):
-
-    detectedEncoding = detectEncoding(target)
-    origin = open(target, 'r', encoding = detectedEncoding, errors='replace')
-    minimized = open(mindir + target, 'w', encoding = detectedEncoding)
+# let the strippedLines match the original file, then resotre them into the minimized file.
+def restoreContents(strippedLines, origin, minimized):
 
     for strippedLine in strippedLines:
         orgLine = origin.readline()
@@ -170,19 +169,18 @@ def restoreHeaderInclude(mindir, target, strippedLines):
 
         # if valid contents found which is different from the original source
         else:
-
             # restore deleted #include sentence
-            if strippedLine.startswith('TO BE REPLACED: '):
+            if strippedLine.startswith(b'TO BE REPLACED: '):
                 # look for matching #include line in the original source file
                 # strippedLine[17:-2] is the header path in the preprocessor output
                 while not isCorrelatedIncludeLine(orgLine, strippedLine[17:-2]):
                     orgLine = origin.readline()
                     # if the matched #include line not found in the original source file, continue searching it from the first line
-                    if orgLine == '':
+                    if orgLine == b'':
                         origin.seek(0, 0)
 
                 # write the original #include sentence, avoiding multi line /**/ comment
-                minimized.write(orgLine.strip().split('/*')[0] + '\n' if ('/*' in orgLine and not '*/' in orgLine) else orgLine)
+                minimized.write(orgLine.strip().split(b'/*')[0] + b'\n' if (b'/*' in orgLine and not b'*/' in orgLine) else orgLine)
 
             # if not #include sentence and different line from the original, restore the original line
             else:
@@ -191,15 +189,32 @@ def restoreHeaderInclude(mindir, target, strippedLines):
                     orgLine = origin.readline()
 
                 # write multiline macro definition as one line form
-                if orgLine.strip().endswith('\\'):
+                if orgLine.strip().endswith(b'\\'):
                     minimized.write(strippedLine)
 
                 # restore the original line, mostly it's #define sentence
-                elif not '/*' in orgLine or orgLine.strip().startswith('/*') or '*/' in orgLine:
+                elif not b'/*' in orgLine or orgLine.strip().startswith(b'/*') or b'*/' in orgLine:
                     minimized.write(orgLine)
                 # avoid multi line /**/ comment
                 else:
-                    minimized.write(orgLine.strip().split('/*')[0] + '\n')
+                    minimized.write(orgLine.strip().split(b'/*')[0] + b'\n')
+
+
+# copy the relevant #include lines from the original C source file
+def restoreHeaderInclude(mindir, target, strippedLines):
+
+    origin = open(target, 'rb')
+    minimized = open(mindir + target, 'wb')
+
+    if 'arch/x86/boot/video-' in target or 'lib/decompress_' in target:
+        # exceptional case in the Linux Kernel; these *.c files are reffered by multiple location with different -D configurations, 
+        # so #ifdef/#ifndef should not be removed for just one unique identical configuraion. 
+        # In this case just copy the original file without any modification.
+        for line in origin:
+            minimized.write(line)
+    else:
+        # regular case, let the strippedLines match the original file, then resotre them.
+        restoreContents(strippedLines, origin, minimized)
 
     minimized.close()
 
@@ -219,26 +234,36 @@ def restoreHeaderInclude(mindir, target, strippedLines):
 # identify and delete the expanded header file contents
 def stripHeaders(mindir, target):
 
-    preprocessed = open(mindir + target + '.preprocessed', 'r', encoding = detectEncoding(mindir + target + '.preprocessed'), errors='replace')
+    targetFilePath = target.encode(detectEncoding(mindir + target + '.preprocessed'))
+    preprocessed = open(mindir + target + '.preprocessed', 'rb')
     strippedLines = []
 
     writeOn = False
     lastInclude = None
+    started = False
+
     for line in preprocessed:
+        # skip until the original contents begin
+        if not started and line != b'# 1 "<command-line>" 2\n':
+            continue
+        else:
+            started = True
+
         lineElements = line.split()
 
         # look for linemarkers from the Preprocessor Output in order to remove expanded header file contents
-        if len(lineElements) >= 3 and line.startswith('# '):
-            if lineElements[1].isdigit() and lineElements[2][0] == lineElements[2][-1] == '\"':
+        if len(lineElements) >= 3 and line.startswith(b'# '):
+            if lineElements[1].isdigit() and lineElements[2][:1] == lineElements[2][-1:] == b'\"':
+
                 # look for #include sentence to be restored in the original C file
-                writeOn = True if lineElements[2][1:-1] == target else False
+                writeOn = True if lineElements[2][1:-1] == targetFilePath else False
 
                 # remember the header file name where its contents are removed
                 if len(lineElements) >= 4:
-                    if lineElements[3] == '2' and writeOn:
-                        strippedLines.append('TO BE REPLACED: ' + lastInclude)
+                    if lineElements[3] == b'2' and writeOn:
+                        strippedLines.append(b'TO BE REPLACED: ' + lastInclude)
 
-                lastInclude = lineElements[2] + '\n'
+                lastInclude = lineElements[2] + b'\n'
                 continue
 
         # copy the line if it is not the header contents (copy only original C file contents)
@@ -254,11 +279,6 @@ def stripHeaders(mindir, target):
 # perform gcc -E -fdirectives-only for the target C file
 def preprocess(options):
 
-    # delete sparse specific option that is contained in default CHECKFLAGS
-    for unneccesaryOpt in ('-Wbitwise', '-D__STDC__', '-Wno-return-void'):
-        if unneccesaryOpt in options:
-            options.remove(unneccesaryOpt)
-
     # user's specified output directory if given
     if '-mindir' in options:
         i = options.index('-mindir')
@@ -269,13 +289,23 @@ def preprocess(options):
         # default output directory
         mindir = '../minimized-tree/'
 
+    # delete sparse specific options that is contained in default CHECKFLAGS
+    if '-nostdinc' in options:
+        options = options[options.index('-nostdinc'):]
+    elif '-Wno-return-void' in options: # for Linux Kernel
+        options = options[options.index('-Wno-return-void') + 1:]
+    elif '-Wbitwise' in options: # for BusyBox
+        options = options[options.index('-Wbitwise') + 1:]
+    else:
+        pass
+
     # make up '"' in the -D option to avoid syntax error
     for i, v in enumerate(options):
         if '-D' in v:
             options[i] = v[:2] + '\"' + v[2:] + '\"'
 
     # construct preprocess command line
-    minimizeCommand = ['gcc -E -fdirectives-only']
+    minimizeCommand = [os.getenv('CROSS_COMPILE', '') + 'gcc -E -fdirectives-only']
     minimizeCommand.extend(options)
     minimizeCommand = ' '.join(minimizeCommand)
 

@@ -28,7 +28,7 @@ The minimization script requires the following commands working in the host mach
 1. Navigate to your kernel tree directory.  
 example:
 ```bash
-$ cd linux-4.3.3
+$ cd linux-4.4.1
 ```
 
 2. copy `minimize.py` to your kernel tree directory.
@@ -89,8 +89,8 @@ There is a minimization summary info available. In the minimized tree directory,
 If you run `minimize.py` with the filepath of `diffstat.log`, it will display summary info like this.  
 ```bash
 $ ./minimize.py ../minimized-busybox/diffstat.log 
-339 out of 505 C files have been minimized.
-Unused 25695 lines(14% of the original C code) have been removed.
+296 out of 505 compiled C files have been minimized.
+Unused 20460 lines(11% of the original C code) have been removed.
 ```
 
 ## Verification for the minimized built binary
@@ -100,17 +100,19 @@ Among the minimized built products, `busybox_unstripped.out` and `busybox_unstri
 The executables `busybox` and `busybox_unstripped` differ in some points(build time stamp etc),  
 but the disassembled code (output of `objdump -d busybox`) exactly matches with the original ones also.  
   
-For the Linux Kernel, we confirmed `objdump -d vmlinux.o` exatcly matches between the minimized and the original. Confirmed config is only `allnoconfig`.
-Other kernel configs are yet to determine.  
+For the Linux Kernel, we confirmed `objdump -d vmlinux.o` exatcly matches between the minimized and the original built product in `allnoconfig` condition.  
+For compilation of the minimized Kernel Tree, `allnoconfig`, `defconfig`(x86), and cross-environment `omap2plus_defconfig`(arm-linux-gnueabi) are confirmed successful.  
+For compilation of the minimized BusyBox, `allnoconfig` and `defconfig`(x86) are confirmed successful.  
+Other kernel configs or architectures are yet to be determined.  
   
 ## TODOs
 1. Consider extending this technique to other build system such as CMake.
 2. Combine analysis execution at one time (like `--with-spatch` option).
-3. Try other kernel/busybox config.
+3. Try other kernel/busybox config or othre architectures.
 
 ## Version compatibility
 * Works on either Python 2.x or 3.x without any modification. 
-* For Linux Kernel, we've confirmed 4.0.7 and 4.3.3 are applicable.
+* For Linux Kernel, we've confirmed 4.0.7, 4.3.3, and 4.4.1 are applicable.
 * For BusyBox, we've confirmed 1.24.1 is applicable.
 
 
