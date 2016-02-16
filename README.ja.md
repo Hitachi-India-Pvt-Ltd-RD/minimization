@@ -27,7 +27,7 @@ Minimizationスクリプトを実行するためには以下のコマンド類�
 1. minimizeを行うカーネルソースツリーのルートディレクトリに移動してください。  
 例:
 ```bash
-$ cd linux-4.3.3
+$ cd linux-4.4.1
 ```
 
 2. `minimize.py`スクリプトをカーネルツリーのルートディレクトリにコピーしてください。
@@ -85,8 +85,8 @@ Minimization結果の統計情報と差分情報が出力ディレクトリに `
 `minimize.py` スクリプトを `diffstat.log` へのファイルパスを引数に直接実行すると、Minimizationサマリ情報を以下のように出力します。  
 ```bash
 $ ./minimize.py ../minimized-busybox/diffstat.log 
-339 out of 505 C files have been minimized.
-Unused 25695 lines(14% of the original C code) have been removed.
+296 out of 505 compiled C files have been minimized.
+Unused 20460 lines(11% of the original C code) have been removed.
 ```
 
 ## Verification for the minimized built binary
@@ -95,17 +95,18 @@ MinimizeしたBusyBoxソースコードを元のBusyBoxプロジェクトに対�
 生成される`busybox_unstripped.out` および `busybox_unstripped.out`は、minimize前にビルドしたものと全く同一(md5sumが一致)となります。  
 実行ファイル `busybox` および `busybox_unstripped` についてはタイムスタンプ等が異なりバイナリは一致しませんが、`objdump -d busybox` で逆アセンブルするとその結果はminimize処理前のものと一致します。  
   
-Linux Kernelに対しては vmlinux.o の逆アセンブル結果 `objdump -d vmlinux.o` がminimize前後で一致することを確認しています。  
-minimize後のビルド成功を確認した設定はLinux Kernelで `allnoconfig` のみ、BusyBoxに対しては `allnoconfig` と `defconfig` のみです。  
+Linux Kernelに対しては vmlinux.o の逆アセンブル結果 `objdump -d vmlinux.o` がminimize前後で一致することを`allnoconfig`条件下で確認しています。  
+minimize後のビルド成功を確認した設定はLinux Kernelで `allnoconfig` 、`defconfig`(x86)、そしてクロスビルド環境の`omap2plus_defconfig`(arm-linux-gnueabi)です。  
+BusyBoxに対しては `allnoconfig` と `defconfig` でminimized後のソースのビルド成功を確認しています。
   
 ## TODOs
 1. CMakeなど他のビルドシステムでも適用できるよう拡張する
 2. `--with-spatch`オプションなどのように、検証ツールを同時に実行できるようにする
-3. Linux Kernel/BusyBoxともに他のconfigでも適用できることを確認する
+3. Linux Kernel/BusyBoxともに他のconfigまたはアーキテクチャでも適用できることを確認する
 
 ## Version compatibility
 * Python 2.x と 3.x のいずれでもそのまま実行可能です。
-* Linux Kernel は 4.0.7 および 4.3.3 に対して適用できることを確認しました。                                                                      
+* Linux Kernel は 4.0.7, 4.3.3, 4.4.1 に対して適用できることを確認しました。
 * BusyBox は 1.24.1 に対して適用できることを確認しました。
 
 ## Reference
