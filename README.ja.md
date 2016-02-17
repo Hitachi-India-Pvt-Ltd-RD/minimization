@@ -63,7 +63,8 @@ $ make drivers C=1 CHECK=minimize.py CF="-mindir ../minimized-tree/"
 ```
   
 これにより、ビルドとminimize処理が同時に実行されます。  
-minimize処理後のソースファイルは `../minimized-tree/` ディレクトリ(`CF = "-mindir ..."`で指定した場所)に生成されます。
+minimize処理後のソースファイルは `../minimized-tree/` ディレクトリ(`CF = "-mindir ..."`で指定した場所)に生成されます。  
+Minimizationが作用するのはコンパイル対象のCソースファイルのみです。includeされたヘッダ等その他のファイルはそのままの状態になっています。  
 
 ## BusyBox Application
 MinimizationスクリプトはLinux Kernelだけではなく、Makefileで`CHECK`オプションがサポートされている他のプロジェクトにも適用できます。  

@@ -18,9 +18,9 @@
 *******************************************************************************/
 """
 
-import os
-import sys
-import subprocess
+import os, sys
+from subprocess import Popen, PIPE
+from shutil import copy2
 from codecs import open
 
 # print colored text according to message level
@@ -101,7 +101,7 @@ def detectEncoding(filepath):
         display('Suggestion: $ sudo apt-get install file', 'err')
         sys.exit(1)
 
-    stdout = subprocess.Popen(['file', '-i', filepath], stdout=subprocess.PIPE).communicate()[0]
+    stdout = Popen(['file', '-i', filepath], stdout=PIPE).communicate()[0]
 
     # for Python 2.x and 3.x version compatibility
     encoding = (stdout if type(stdout) is str else stdout.decode()).strip().split('charset=')[-1]
@@ -128,18 +128,15 @@ def isCorrelatedLine(orgLine, strippedLine):
     elif b''.join(strippedLine.split(b'//')[0].split()) == b''.join(orgLine.split(b'//')[0].split()):
         return True
 
-    elif not (orgLine.isspace() or orgLine.strip() == b'\\') and orgLine.strip().endswith(b'\\'):
-        orgLine = removeComments(orgLine)
-        if b''.join(orgLine.strip()[:-1].split()) in b''.join(strippedLine.split()):
-            return True
+    elif b''.join(removeComments(strippedLine).split()) == b''.join(removeComments(orgLine).split()):
+        return True
+
+    elif not (orgLine.isspace() or orgLine.strip() == b'\\') and orgLine.strip().endswith(b'\\') and \
+         b''.join(removeComments(orgLine).strip()[:-1].split()) in b''.join(strippedLine.split()):
+        return True
 
     else:
-        orgLine = removeComments(orgLine)
-        strippedLine = removeComments(strippedLine)
-        if b''.join(strippedLine.split()) == b''.join(orgLine.split()):
-            return True
-
-    return False
+        return False
 
 
 # True if the current original line corresponds to the stripped "TO BE REPLACED: " line, False if they don't match
@@ -156,7 +153,10 @@ def isCorrelatedIncludeLine(orgLine, headerPath):
 
 
 # let the strippedLines match the original file, then resotre them into the minimized file.
-def restoreContents(strippedLines, origin, minimized):
+def restoreContents(strippedLines, mindir, target):
+
+    origin = open(target, 'rb')
+    minimized = open(mindir + target, 'wb')
 
     for strippedLine in strippedLines:
         orgLine = origin.readline()
@@ -201,24 +201,22 @@ def restoreContents(strippedLines, origin, minimized):
                 else:
                     minimized.write(orgLine.strip().split(b'/*')[0] + b'\n')
 
+    origin.close()
+    minimized.close()
+
 
 # copy the relevant #include lines from the original C source file
 def restoreHeaderInclude(mindir, target, strippedLines):
-
-    origin = open(target, 'rb')
-    minimized = open(mindir + target, 'wb')
 
     if 'arch/x86/boot/video-' in target or 'lib/decompress_' in target:
         # exceptional case in the Linux Kernel; these *.c files are reffered by multiple location with different -D configurations, 
         # so #ifdef/#ifndef should not be removed for just one unique identical configuraion. 
         # In this case just copy the original file without any modification.
-        for line in origin:
-            minimized.write(line)
+        copyFile2MinDir(target, mindir)
+
     else:
         # regular case, let the strippedLines match the original file, then resotre them.
-        restoreContents(strippedLines, origin, minimized)
-
-    minimized.close()
+        restoreContents(strippedLines, mindir, target)
 
     # write diff statistics for the minimization process
     if (os.system('diff -u ' + target + ' ' + mindir + target + ' >> ' + mindir + 'minimize.patch') >> 8) > 1 or \
@@ -228,21 +226,38 @@ def restoreHeaderInclude(mindir, target, strippedLines):
         display('Suggestion: $ sudo apt-get install diffutils diffstat', 'err')
         sys.exit(1)
 
-    origin.seek(0, 0)
-    os.system('echo \' ' + str(sum(1 for _ in origin)) + ' lines in the origin\' >> ' + mindir + 'diffstat.log')
-    origin.close()
+    with open(target, 'rb') as origin:
+        os.system('echo \' ' + str(sum(1 for _ in origin)) + ' lines in the origin\' >> ' + mindir + 'diffstat.log')
+
+
+# chech directory existence, make the base directory, return the directory path
+def makeBaseDir(base, filepath):
+    outdir = base + filepath[:filepath.rfind('/')]
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
+    return outdir
+
+
+# copy only used included header files into minimized directory
+def copyFile2MinDir(filepath, mindir):
+    if not os.path.exists(filepath) or os.path.exists(mindir + filepath) or filepath.startswith('/'):
+        return
+
+    copy2(filepath, makeBaseDir(mindir, filepath))
 
 
 # identify and delete the expanded header file contents
 def stripHeaders(mindir, target):
 
-    targetFilePath = target.encode(detectEncoding(mindir + target + '.preprocessed'))
+    encoding = detectEncoding(mindir + target + '.preprocessed')
+    targetFilePath = target.encode(encoding)
     preprocessed = open(mindir + target + '.preprocessed', 'rb')
     strippedLines = []
 
+    started = False
     writeOn = False
     lastInclude = None
-    started = False
 
     for line in preprocessed:
         # skip until the original contents begin
@@ -260,6 +275,10 @@ def stripHeaders(mindir, target):
                 # look for #include sentence to be restored in the original C file
                 writeOn = True if lineElements[2][1:-1] == targetFilePath else False
 
+                # copy only used included header files
+                if not writeOn:
+                    copyFile2MinDir(lineElements[2][1:-1].decode(encoding), mindir)
+
                 # remember the header file name where its contents are removed
                 if len(lineElements) >= 4:
                     if lineElements[3] == b'2' and writeOn:
@@ -275,20 +294,20 @@ def stripHeaders(mindir, target):
     preprocessed.close()
     os.remove(mindir + target + '.preprocessed')
 
-    return strippedLines
+    return (mindir, target, strippedLines)
 
 
 # perform gcc -E -fdirectives-only for the target C file
 def preprocess(options):
 
-    # user's specified output directory if given
     if '-mindir' in options:
+        # extract user's specified output directory if given
         i = options.index('-mindir')
         options.remove('-mindir')
         mindir = options.pop(i)
         mindir += '' if mindir.endswith('/') else '/'
     else:
-        # default output directory
+        # set default output directory
         mindir = '../minimized-tree/'
 
     # delete sparse specific options that is contained in default CHECKFLAGS
@@ -313,12 +332,9 @@ def preprocess(options):
 
     # target C source file with relative path
     target = options[-1]
-    # relative output directory
-    outdir = mindir + target[:target.rfind('/')]
 
     # prepare the output directory 
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makeBaseDir(mindir, target)
 
     # issue the minimized command
     if (os.system(minimizeCommand + ' > ' + mindir + target + '.preprocessed') >> 8) != 0:
@@ -344,8 +360,6 @@ if __name__=="__main__":
         displaySummary(sys.argv[1])
         sys.exit(0)
 
-    # run preprocess cpmmand with options passed through Makefile
-    mindir, target = preprocess(sys.argv[1:])
-
-    # remove expanded header file contents
-    restoreHeaderInclude(mindir, target, stripHeaders(mindir, target))
+    # run preprocess cpmmand with options passed through Makefile, 
+    # then remove expanded header file contents and extra blank lines
+    restoreHeaderInclude(*stripHeaders(*preprocess(sys.argv[1:])))
