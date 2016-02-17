@@ -63,8 +63,9 @@ example:
 $ make drivers C=1 CHECK=minimize.py CF="-mindir ../minimized-tree/"
 ```
 
-if successful, compilation and minimization will be executed at the same time,   
-and the minimized kernel tree will be generated under `../minimized-tree/`
+If successful, compilation and minimization will be executed at the same time,  
+and the minimized kernel tree will be generated under `../minimized-tree/`.  
+Note that only the target C source files will be minimized. The other file contents(included header etc) remain as are for a reason.  
 
 ## BusyBox Application
 The script also works with other projects provided that their Makefile support source `CHECK`(sparse by default) option via `C=1` flag.  
