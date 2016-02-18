@@ -251,16 +251,14 @@ def stripHeaders(mindir, target):
     preprocessed = open(mindir + target + '.preprocessed', 'rb')
     strippedLines = []
 
-    started = False
     writeOn = False
     lastInclude = None
 
+    # skip until the original contents begin
+    while preprocessed.readline() != b'# 1 "<command-line>" 2\n':
+        pass
+
     for line in preprocessed:
-        # skip until the original contents begin
-        if not started and line != b'# 1 "<command-line>" 2\n':
-            continue
-        else:
-            started = True
 
         lineElements = line.split()
 
@@ -269,7 +267,7 @@ def stripHeaders(mindir, target):
             if lineElements[1].isdigit() and lineElements[2][:1] == lineElements[2][-1:] == b'\"':
 
                 # look for #include sentence to be restored in the original C file
-                writeOn = True if lineElements[2][1:-1] == targetFilePath else False
+                writeOn = lineElements[2][1:-1] == targetFilePath
 
                 # copy only used included header files
                 if not writeOn:
