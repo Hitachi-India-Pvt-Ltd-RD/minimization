@@ -142,14 +142,10 @@ def isCorrelatedLine(orgLine, strippedLine):
 # True if the current original line corresponds to the stripped "TO BE REPLACED: " line, False if they don't match
 def isCorrelatedIncludeLine(orgLine, headerPath):
 
-    correlated = False
-
     incLine = b''.join(orgLine.split())
-    if incLine.startswith(b'#include'):
-        # 9 is len('#include') + 1
-        correlated = headerPath.endswith(incLine[9: 9 + incLine[9:].find(b'>' if incLine[8:9] == b'<' else b'\"')])
-
-    return correlated
+    # 9 is len('#include') + 1
+    return headerPath.endswith(incLine[9: 9 + incLine[9:].find(b'>' if incLine[8:9] == b'<' else b'\"')]) \
+        if incLine.startswith(b'#include') else False
 
 
 # let the strippedLines match the original file, then resotre them into the minimized file.
