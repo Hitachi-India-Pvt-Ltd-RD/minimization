@@ -23,6 +23,8 @@ from subprocess import Popen, PIPE
 from shutil import copy2
 from codecs import open
 
+INCLUDE_TAG = b'TO BE REPLACED: '
+
 # print colored text according to message level
 def display(message, level = 'info'):
 
@@ -168,7 +170,7 @@ def restoreContents(strippedLines, mindir, target):
         # if valid contents found which is different from the original source
         else:
             # restore deleted #include sentence
-            if strippedLine.startswith(b'TO BE REPLACED: '):
+            if strippedLine.startswith(INCLUDE_TAG):
                 # look for matching #include line in the original source file
                 # strippedLine[17:-2] is the header path in the preprocessor output
                 while not isCorrelatedIncludeLine(orgLine, strippedLine[17:-2]):
@@ -276,7 +278,7 @@ def stripHeaders(mindir, target):
                 # remember the header file name where its contents are removed
                 if len(lineElements) >= 4:
                     if lineElements[3] == b'2' and writeOn:
-                        strippedLines.append(b'TO BE REPLACED: ' + lastInclude)
+                        strippedLines.append(INCLUDE_TAG + lastInclude)
 
                 lastInclude = lineElements[2] + b'\n'
                 continue
