@@ -119,6 +119,7 @@ Other kernel configs or architectures are yet to be determined.
 
 ## Reference
 * [relevant discussions in the SIL2LinuxMP mailing list](http://lists.osadl.org/pipermail/sil2linuxmp/2015-October/000142.html)
+The mailing list is available only in SIL2LinuxMP community for now.
 
 
 ## Contact
