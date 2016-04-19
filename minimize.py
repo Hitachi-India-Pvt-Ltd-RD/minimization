@@ -316,10 +316,11 @@ def preprocess(options):
     else:
         pass
 
-    # make up '"' in the -D option to avoid syntax error
+    # make up '\'' in the -D option to avoid syntax error
     for i, v in enumerate(options):
-        if '-D' in v:
-            options[i] = v[:2] + '\"' + v[2:] + '\"'
+        if v.startswith('-D'):
+            v = v.replace('"', '\"')
+            options[i] = v[:2] + '\'' + v[2:] + '\''
 
     # construct preprocess command line
     minimizeCommand = [os.getenv('CROSS_COMPILE', '') + 'gcc -E -fdirectives-only']
