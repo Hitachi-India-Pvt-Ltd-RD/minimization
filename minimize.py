@@ -265,7 +265,7 @@ def stripHeaders(mindir, target):
         lineElements = line.split()
 
         # look for linemarkers from the Preprocessor Output in order to remove expanded header file contents
-        if len(lineElements) >= 3 and line.startswith(b'# '):
+        if len(lineElements) >= 3 and line.strip().startswith(b'# '):
             if lineElements[1].isdigit() and lineElements[2][:1] == lineElements[2][-1:] == b'\"':
 
                 # look for #include sentence to be restored in the original C file
