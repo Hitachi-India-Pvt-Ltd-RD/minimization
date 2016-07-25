@@ -230,7 +230,7 @@ def restoreHeaderInclude(mindir, target, strippedLines):
 
 # chech directory existence, make the base directory, return the directory path
 def makeBaseDir(base, filepath):
-    outdir = base + filepath[:filepath.rfind('/')]
+    outdir = base + (filepath[:filepath.rfind('/')] if '/' in filepath else '')
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -250,15 +250,18 @@ def stripHeaders(mindir, target):
 
     encoding = detectEncoding(mindir + target + '.preprocessed')
     targetFilePath = target.encode(encoding)
-    preprocessed = open(mindir + target + '.preprocessed', 'rb')
     strippedLines = []
 
     writeOn = False
     lastInclude = None
 
-    # skip until the original contents begin
-    while preprocessed.readline() != b'# 1 "<command-line>" 2\n':
-        pass
+    with open(mindir + target + '.preprocessed', 'rb') as f:
+        preprocessed = f.readlines()
+        # skip until the original contents begin
+        for i in range(-1, -1 * len(preprocessed), -1):
+            if preprocessed[i].startswith(b'# 1 "<command-line>"'):
+                preprocessed = preprocessed[i+1:]
+                break
 
     for line in preprocessed:
 
@@ -287,7 +290,6 @@ def stripHeaders(mindir, target):
         if writeOn:
             strippedLines.append(line)
 
-    preprocessed.close()
     os.remove(mindir + target + '.preprocessed')
 
     return (mindir, target, strippedLines)
@@ -315,6 +317,19 @@ def preprocess(options):
         options = options[options.index('-Wbitwise') + 1:]
     else:
         pass
+
+    # convert compile options in case CHECK feature is unavailable
+    if '-o' in options:
+        i = options.index('-o')
+        options.pop(i + 1) # delete object filename from the option list
+        options.pop(i) # delete -o
+        if '-c' in options:
+            options.remove('-c')
+        else:
+            exit(0) # ignore link process without compilation
+    else:
+        if '-c' in options:
+            options.remove('-c')
 
     # make up '\'' in the -D option to avoid syntax error
     for i, v in enumerate(options):
