@@ -228,7 +228,7 @@ def restoreHeaderInclude(mindir, target, strippedLines):
         os.system('echo \' ' + str(sum(1 for _ in origin)) + ' lines in the origin\' >> ' + mindir + 'diffstat.log')
 
 
-# chech directory existence, make the base directory, return the directory path
+# check directory existence, make the base directory, return the directory path
 def makeBaseDir(base, filepath):
     outdir = base + (filepath[:filepath.rfind('/')] if '/' in filepath else '')
     if not os.path.exists(outdir):
