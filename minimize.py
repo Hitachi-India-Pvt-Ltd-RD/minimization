@@ -130,7 +130,8 @@ def isCorrelatedLine(orgLine, strippedLine):
     elif b''.join(strippedLine.split(b'//')[0].split()) == b''.join(orgLine.split(b'//')[0].split()):
         return True
 
-    elif b''.join(removeComments(strippedLine).split()) == b''.join(removeComments(orgLine).split()):
+    elif b''.join(removeComments(strippedLine).split()) == b''.join(removeComments(orgLine).split()) and \
+        not removeComments(orgLine).isspace():
         return True
 
     elif not (orgLine.isspace() or orgLine.strip() == b'\\') and orgLine.strip().endswith(b'\\') and \
