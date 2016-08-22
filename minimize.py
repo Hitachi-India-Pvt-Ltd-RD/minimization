@@ -207,7 +207,7 @@ def restoreContents(strippedLines, mindir, target):
 # copy the relevant #include lines from the original C source file
 def restoreHeaderInclude(mindir, target, strippedLines):
 
-    if 'arch/x86/boot/video-' in target or 'lib/decompress_' in target:
+    if 'arch/x86/boot/video-' in target or 'lib/decompress_' in target or not strippedLines:
         # exceptional case in the Linux Kernel; these *.c files are reffered by multiple location with different -D configurations, 
         # so #ifdef/#ifndef should not be removed for just one unique identical configuraion. 
         # In this case just copy the original file without any modification.
@@ -280,9 +280,11 @@ def stripHeaders(mindir, target):
                     copyFile2MinDir(lineElements[2][1:-1].decode(encoding), mindir)
 
                 # remember the header file name where its contents are removed
-                if len(lineElements) >= 4:
-                    if lineElements[3] == b'2' and writeOn:
+                if len(lineElements) >= 4 and writeOn:
+                    if lineElements[3] == b'2':
                         strippedLines.append(INCLUDE_TAG + lastInclude)
+                    elif lineElements[3] == b'1': # if the same C file is included from the original C file (ex. kernel/locking/qspinlock.c)
+                        return (mindir, target, None) # skip minimization but just copy
 
                 lastInclude = lineElements[2] + b'\n'
                 continue
