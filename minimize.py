@@ -217,6 +217,10 @@ def restoreHeaderInclude(mindir, target, strippedLines):
         # regular case, let the strippedLines match the original file, then resotre them.
         restoreContents(strippedLines, mindir, target)
 
+    # avoid multiple recording in minimize.patch
+    if 'init/version.c' in target:
+        return
+
     # write diff statistics for the minimization process
     if (os.system('diff -u ' + target + ' ' + mindir + target + ' > ' + mindir + 'tmp') >> 8) > 1 or \
        (os.system('diff -u ' + target + ' ' + mindir + target + '| diffstat -p 2 >> ' + mindir + 'diffstat.log') >> 8) != 0:
