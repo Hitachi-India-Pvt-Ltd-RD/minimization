@@ -218,7 +218,7 @@ def restoreHeaderInclude(mindir, target, strippedLines):
         restoreContents(strippedLines, mindir, target)
 
     # write diff statistics for the minimization process
-    if (os.system('diff -u ' + target + ' ' + mindir + target + ' >> ' + mindir + '_minimize.patch') >> 8) > 1 or \
+    if (os.system('diff -u ' + target + ' ' + mindir + target + ' > ' + mindir + 'tmp') >> 8) > 1 or \
        (os.system('diff -u ' + target + ' ' + mindir + target + '| diffstat -p 2 >> ' + mindir + 'diffstat.log') >> 8) != 0:
         display('Failed to run diff and diffstat commands.', 'err')
         display('Please install diff and diffstat utilities in the host machine.', 'err')
@@ -230,8 +230,8 @@ def restoreHeaderInclude(mindir, target, strippedLines):
 
         
     # polish relative file paths expression in minimize.patch content
-    fp = open(mindir + 'minimize.patch', 'w')
-    for line in open(mindir + '_minimize.patch'):
+    fp = open(mindir + 'minimize.patch', 'a')
+    for line in open(mindir + 'tmp'):
     
         if line.startswith('---') or line.startswith('+++'):
         
@@ -248,7 +248,7 @@ def restoreHeaderInclude(mindir, target, strippedLines):
         fp.write(line)
     
     fp.close()
-    os.remove(mindir + '_minimize.patch')
+    os.remove(mindir + 'tmp')
 
         
 # check directory existence, make the base directory, return the directory path
