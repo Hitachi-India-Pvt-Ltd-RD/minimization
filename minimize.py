@@ -217,8 +217,12 @@ def restoreHeaderInclude(mindir, target, strippedLines):
         # regular case, let the strippedLines match the original file, then resotre them.
         restoreContents(strippedLines, mindir, target)
 
+    # avoid multiple recording in minimize.patch
+    if 'init/version.c' in target:
+        return
+
     # write diff statistics for the minimization process
-    if (os.system('diff -u ' + target + ' ' + mindir + target + ' >> ' + mindir + 'minimize.patch') >> 8) > 1 or \
+    if (os.system('diff -u ' + target + ' ' + mindir + target + ' > ' + mindir + 'tmp') >> 8) > 1 or \
        (os.system('diff -u ' + target + ' ' + mindir + target + '| diffstat -p 2 >> ' + mindir + 'diffstat.log') >> 8) != 0:
         display('Failed to run diff and diffstat commands.', 'err')
         display('Please install diff and diffstat utilities in the host machine.', 'err')
@@ -228,7 +232,29 @@ def restoreHeaderInclude(mindir, target, strippedLines):
     with open(target, 'rb') as origin:
         os.system('echo \' ' + str(sum(1 for _ in origin)) + ' lines in the origin\' >> ' + mindir + 'diffstat.log')
 
+        
+    # polish relative file paths expression in minimize.patch content
+    fp = open(mindir + 'minimize.patch', 'a')
+    for line in open(mindir + 'tmp'):
+    
+        if line.startswith('---') or line.startswith('+++'):
+        
+            while '/..' in line:
+                path = line.split('/..', 1)
 
+                if '/' in path[0]:
+                    line = path[0][:path[0].rfind('/')] + path[1]
+                else:
+                    line = path[0][:4] + path[1][1:]
+
+            line = line.replace('../minimized-tree/', '')
+        
+        fp.write(line)
+    
+    fp.close()
+    os.remove(mindir + 'tmp')
+
+        
 # check directory existence, make the base directory, return the directory path
 def makeBaseDir(base, filepath):
     outdir = base + (filepath[:filepath.rfind('/')] if '/' in filepath else '')
